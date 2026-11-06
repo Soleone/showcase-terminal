@@ -15,11 +15,18 @@
   <link rel="preload" href="fonts/JetBrainsMonoNerdFontMono-Bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.css" crossorigin>
   <script>
-    // Puts the visitor's theme on before first paint (themes.js saves the resolved colors when one is picked).
+    // Puts the visitor's theme on before first paint (apply() saves the resolved colors when one is picked).
+    // data-theme holds the theme's name and .dark its mode, where a skin's theme kit expects them.
+    // A choice saved before the variables were renamed waits for themes.json instead.
     try {
       const saved = JSON.parse(localStorage.getItem("browser-terminal.theme"));
-      for (const [name, value] of Object.entries(saved.vars)) document.documentElement.style.setProperty(`--${name}`, value);
-      document.documentElement.style.colorScheme = document.documentElement.dataset.theme = saved.mode;
+      if (saved.vars.highlight) {
+        const root = document.documentElement;
+        for (const [name, value] of Object.entries(saved.vars)) root.style.setProperty(`--${name}`, value);
+        root.style.colorScheme = root.dataset.mode = saved.mode;
+        root.dataset.theme = saved.name;
+        root.classList.toggle("dark", saved.mode === "dark");
+      }
     } catch {}
   </script>
   <style>
@@ -42,37 +49,39 @@
       --page: #111113;
       --ink: #d4d4d8;
       --ink-strong: #fafafa;
-      --muted: #a1a1aa;
-      --accent: #60a5fa;
+      --ink-muted: #a1a1aa;
+      --highlight: #60a5fa;
       --surface: #1c1c1f;
       --line: #2e2e33;
       --terminal: #0b0b0c;
     }
     @media (prefers-color-scheme: light) {
-      :root:not([data-theme="dark"]) {
+      :root:not([data-mode="dark"]) {
         color-scheme: light;
         --page: #fafafa;
         --ink: #27272a;
         --ink-strong: #09090b;
-        --muted: #52525b;
-        --accent: #2563eb;
+        --ink-muted: #52525b;
+        --highlight: #2563eb;
         --surface: #f4f4f5;
         --line: #e4e4e7;
         --terminal: #ffffff;
       }
     }
-    :root[data-theme="light"] {
+    :root[data-mode="light"] {
       color-scheme: light;
       --page: #fafafa;
       --ink: #27272a;
       --ink-strong: #09090b;
-      --muted: #52525b;
-      --accent: #2563eb;
+      --ink-muted: #52525b;
+      --highlight: #2563eb;
       --surface: #f4f4f5;
       --line: #e4e4e7;
       --terminal: #ffffff;
     }
     * { box-sizing: border-box; }
+    /* An id or class that sets display would otherwise show a hidden element (a skin's picker relies on this too). */
+    [hidden] { display: none !important; }
     html, body { margin: 0; min-height: 100%; }
     body {
       background: var(--page);
@@ -85,8 +94,8 @@
     header, main, footer { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 16px; }
     header { padding-top: 32px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 24px; }
     h1 { margin: 0; color: var(--ink-strong); font-size: clamp(28px, 5vw, 44px); font-weight: 600; line-height: 1.05; letter-spacing: -0.03em; }
-    .pitch { margin: 8px 0 0; color: var(--muted); font-size: 17px; max-width: 62ch; text-wrap: pretty; }
-    a { color: var(--accent); text-underline-offset: 3px; }
+    .pitch { margin: 8px 0 0; color: var(--ink-muted); font-size: 17px; max-width: 62ch; text-wrap: pretty; }
+    a { color: var(--highlight); text-underline-offset: 3px; }
     .tools { display: flex; align-items: center; gap: 16px; position: relative; }
     .repo { font-size: 15px; white-space: nowrap; }
     #theme-button {
@@ -95,7 +104,7 @@
       background: var(--surface); color: var(--ink);
       border: 1px solid var(--line); border-radius: 6px; padding: 8px 11px; cursor: pointer;
     }
-    #theme-button:hover, #theme-button:focus-visible, #theme-button[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); outline: none; }
+    #theme-button:hover, #theme-button:focus-visible, #theme-button[aria-expanded="true"] { border-color: var(--highlight); color: var(--highlight); outline: none; }
     .swatch { display: inline-flex; border-radius: 99px; overflow: hidden; border: 1px solid var(--line); flex: none; }
     .swatch i { width: 9px; height: 14px; display: block; }
     #theme-list {
@@ -103,13 +112,12 @@
       margin: 0; padding: 4px; list-style: none;
       background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 32px #0006;
     }
-    #theme-list[hidden] { display: none; }
     #theme-list li { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 5px; font-size: 14px; cursor: pointer; }
-    #theme-list li[aria-selected="true"] { color: var(--accent); }
+    #theme-list li[aria-selected="true"] { color: var(--highlight); }
     #theme-list li.active { background: var(--line); }
     main { flex: 1; display: flex; flex-direction: column; gap: 12px; padding-top: 24px; padding-bottom: 16px; }
     .hints { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-    .hints span { color: var(--muted); font-size: 14px; margin-right: 4px; }
+    .hints span { color: var(--ink-muted); font-size: 14px; margin-right: 4px; }
     .hints button {
       font: 13px/1 "JetBrainsMono Nerd Font Mono", ui-monospace, Menlo, Consolas, monospace;
       background: var(--surface);
@@ -120,7 +128,7 @@
       cursor: pointer;
       transition: border-color 120ms, color 120ms;
     }
-    .hints button:hover:not(:disabled), .hints button:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+    .hints button:hover:not(:disabled), .hints button:focus-visible { border-color: var(--highlight); color: var(--highlight); outline: none; }
     .hints button:disabled { opacity: 0.45; cursor: progress; }
     .panel {
       flex: 1;
@@ -135,7 +143,7 @@
     #terminal .xterm, #terminal .xterm-viewport, #terminal .xterm-scrollable-element { background-color: var(--terminal) !important; }
     /* No focus ring inside the terminal; the blinking cursor shows focus. */
     #terminal .xterm:focus, #terminal .xterm :focus { outline: none; }
-    footer { padding-bottom: 24px; color: var(--muted); font-size: 13px; }
+    footer { padding-bottom: 24px; color: var(--ink-muted); font-size: 13px; }
     @media (max-width: 600px) {
       header { padding-top: 20px; }
       .pitch { font-size: 16px; }
@@ -228,9 +236,12 @@
     }
     // Page and terminal change together; xterm maps its palette onto whatever the programs print.
     function apply(theme, save) {
-      const vars = { page: theme.page, ink: theme.ink, "ink-strong": theme.inkStrong, muted: theme.muted, accent: theme.accent, surface: theme.surface, line: theme.line, terminal: theme.terminal };
-      for (const [name, value] of Object.entries(vars)) document.documentElement.style.setProperty(`--${name}`, value);
-      document.documentElement.style.colorScheme = document.documentElement.dataset.theme = theme.mode;
+      const vars = { page: theme.page, ink: theme.ink, "ink-strong": theme.inkStrong, "ink-muted": theme.muted, highlight: theme.accent, surface: theme.surface, line: theme.line, terminal: theme.terminal };
+      const root = document.documentElement;
+      for (const [name, value] of Object.entries(vars)) root.style.setProperty(`--${name}`, value);
+      root.style.colorScheme = root.dataset.mode = theme.mode;
+      root.dataset.theme = theme.name;
+      root.classList.toggle("dark", theme.mode === "dark");
       if (term) term.options.theme = terminalColors(theme);
       shareTheme(theme);
       if (save) try { localStorage.setItem(storeKey, JSON.stringify({ name: theme.name, mode: theme.mode, vars })); } catch {}
@@ -261,8 +272,16 @@
     }
     fit.fit();
     mark("terminal");
-    // The theme picker: arrows preview a theme in the page and the terminal, Enter keeps it, Esc puts the old one back.
-    if (themes.length > 1) {
+    // A skin's skin.js draws its own theme picker in place of the built-in one.
+    if (config.skinScript && themes.length > 1) {
+      const mount = document.createElement("div");
+      document.querySelector(".tools").append(mount);
+      // Not awaited: the shell does not wait for the picker.
+      import(new URL(config.skinScript, location.href))
+        .then(({ default: skin }) => skin({ themes, current, mount, apply: (theme) => { current = theme; apply(theme, true); } }))
+        .catch((error) => console.warn("skin.js failed", error));
+    } else if (themes.length > 1) {
+      // The theme picker: arrows preview a theme in the page and the terminal, Enter keeps it, Esc puts the old one back.
       const button = document.getElementById("theme-button");
       const list = document.getElementById("theme-list");
       const swatch = (theme) => [theme.page, theme.accent, theme.ink].map((color) => `<i style="background:${color}"></i>`).join("");

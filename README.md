@@ -20,9 +20,9 @@ Keep the recipe folder in the project itself (`demo/browser/` by default), so th
 - `start`: a command typed into the shell once setup is done, to open the program right away (e.g. a TUI). The visitor sees it run and can run it again after quitting.
 - `onTheme`: a command run whenever the visitor picks a theme. Before it runs, the page writes `~/.config/showcase/theme.json` with the theme's colors and the full terminal palette (`palette`, as hex), so a program that draws its own colors can follow the page. The file is also written once before `setup`.
 - `welcome`, `hints` (buttons that type a command), `seed` (a browser module that adds files computed at visit time, such as dates relative to today), and overrides for `title`, `pitch`, `repo`, `disclosure`, `defaultTheme` (a name from `themes.json`, default the first).
-- `skin`: a folder or URL with the page's look, `themes.json` (palettes, same shape as `page/themes.json`) and `skin.css` (fonts and other touches, loaded after the page's styles). Either may be left out. Without a skin the page is plain: a dark and a light theme and system fonts.
+- `skin`: a folder or URL with the page's look, `themes.json` (palettes, same shape as `page/themes.json`) `skin.css` (fonts and other touches, loaded after the page's styles) and `skin.js` (a theme picker, below). Any of them may be left out. Without a skin the page is plain: a dark and a light theme and system fonts.
 
-The output is static: `index.html`, `files.json`, `terminal.json`, `themes.json`, `skin.css`, `fonts/` and a `vercel.json` with the COOP/COEP headers the sandbox needs.
+The output is static: `index.html`, `files.json`, `terminal.json`, `themes.json`, `skin.css`, `skin.js` when the skin has one, `fonts/` and a `vercel.json` with the COOP/COEP headers the sandbox needs.
 
 The terminal font is JetBrainsMono Nerd Font Mono, self-hosted as WOFF2 (about 600 KB per weight) so CLI icons render. `page/fonts/build.sh` rebuilds it from a pinned Nerd Fonts release, keeping the Basic Multilingual Plane and dropping the Material Design plane.
 
@@ -36,6 +36,18 @@ Sandbox quirks found so far:
 WebContainers is free for personal and open-source use; check the StackBlitz license before using it commercially.
 
 The page has a theme picker when there is more than one theme (the choice is remembered in the visitor's browser). A theme colors the page and the terminal's 16 ANSI colors together, so whatever the CLI prints follows it; the bright colors are derived from the normal ones.
+
+A skin can bring its own picker as `skin.js`, an ES module whose default export the page calls once the terminal is up, instead of drawing its dropdown:
+
+```js
+export default function ({ themes, current, apply, mount }) {
+  // themes: the entries of themes.json; current: the one in use
+  // apply(theme): recolors the page and the terminal, tells the sandbox (onTheme) and remembers the choice
+  // mount: an empty element in the page header for the picker's button
+}
+```
+
+The page keeps its state where a theme kit can read it: `data-theme` on `<html>` is the theme's name, `data-mode` and the `dark` class its mode. Its own colors are the CSS variables `--page`, `--ink`, `--ink-strong`, `--ink-muted`, `--highlight`, `--surface`, `--line` and `--terminal`.
 
 From code:
 

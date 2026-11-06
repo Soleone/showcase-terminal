@@ -67,20 +67,24 @@ test("buildTerminal mounts the project and takes its facts from showcase.json", 
   await assert.rejects(readFile(path.join(out, "fonts/build.sh")));
 });
 
-test("buildTerminal takes the page's look from a skin folder", async () => {
+test("buildTerminal takes the page's look and theme picker from a skin folder", async () => {
   const theme = { name: "house", label: "House", mode: "dark" };
   const root = await fixture({
     ...recipeFiles,
     "demo/browser/terminal.json": { ...recipeFiles["demo/browser/terminal.json"], skin: "../../skin" },
     "skin/themes.json": [theme],
     "skin/skin.css": "body { font-family: House; }\n",
+    "skin/skin.js": "export default () => {};\n",
   });
   const out = path.join(root, "dist");
   await buildTerminal(path.join(root, "demo/browser"), out);
 
   assert.deepEqual(await json(path.join(out, "themes.json")), [theme]);
   assert.equal(await readFile(path.join(out, "skin.css"), "utf8"), "body { font-family: House; }\n");
-  assert.equal((await json(path.join(out, "terminal.json"))).skin, undefined);
+  assert.equal(await readFile(path.join(out, "skin.js"), "utf8"), "export default () => {};\n");
+  const config = await json(path.join(out, "terminal.json"));
+  assert.equal(config.skin, undefined);
+  assert.equal(config.skinScript, "skin.js");
 });
 
 test("buildTerminal explains a missing terminal.json", async () => {

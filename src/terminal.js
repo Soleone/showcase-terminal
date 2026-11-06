@@ -74,8 +74,9 @@ function disclosure(title, externals = []) {
   return [`The real ${title} runs in a Node.js sandbox in your browser (WebContainers).`, ...notes, "Reload to start over."].join(" ");
 }
 
-// A skin is a folder or URL with the page's look: themes.json (the palettes) and skin.css (anything else, such
-// as fonts). Either file may be left out; the recipe's plain look fills in.
+// A skin is a folder or URL with the page's look: themes.json (the palettes), skin.css (anything else, such
+// as fonts) and skin.js (a theme picker in place of the built-in one). Any of them may be left out; the
+// recipe's plain look fills in.
 async function skinFile(skin, name, recipeDir) {
   if (!skin) return null;
   if (/^https?:\/\//.test(skin)) {
@@ -111,6 +112,11 @@ export async function buildTerminal(recipeDir, out) {
   await copyFile(path.join(assets, "index.html"), path.join(out, "index.html"));
   await writeFile(path.join(out, "themes.json"), await skinFile(skin, "themes.json", recipeDir) ?? await readFile(path.join(assets, "themes.json")));
   await writeFile(path.join(out, "skin.css"), await skinFile(skin, "skin.css", recipeDir) ?? "");
+  const skinScript = await skinFile(skin, "skin.js", recipeDir);
+  if (skinScript !== null) {
+    await writeFile(path.join(out, "skin.js"), skinScript);
+    config.skinScript = "skin.js";
+  }
   await cp(path.join(assets, "fonts"), path.join(out, "fonts"), { recursive: true, filter: (source) => !source.endsWith(".sh") });
   await writeFile(path.join(out, "files.json"), JSON.stringify(files));
   if (config.seed) await copyFile(path.join(recipeDir, config.seed), path.join(out, config.seed));
