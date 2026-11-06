@@ -1,6 +1,6 @@
 {
   "name": "@soleone/showcase-terminal",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Build a static page that runs a CLI for real in the visitor's browser (WebContainers).",
   "license": "MIT",
   "author": "Soleone",
